@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:trackychatter/screen/login_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
   @override
@@ -10,6 +11,9 @@ class RegistrationScreen extends StatefulWidget {
 class _RegistrationScreenState extends State<RegistrationScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _nameController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _retypePasswordController =
+      TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
   final TextEditingController _ageController = TextEditingController();
@@ -107,7 +111,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         UserCredential userCredential =
             await _auth.createUserWithEmailAndPassword(
           email: _emailController.text,
-          password: 'dummyPassword',
+          password: _passwordController.text,
         );
 
         // Store additional user information if needed
@@ -157,7 +161,7 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                 // Name Field
                 TextFormField(
                   controller: _nameController,
-                  decoration: InputDecoration(
+                  decoration: const InputDecoration(
                     labelText: 'Name',
                     border: OutlineInputBorder(),
                   ),
@@ -168,7 +172,41 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     return null;
                   },
                 ),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
+                // Password Field
+                TextFormField(
+                  controller: _passwordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Password',
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter your password';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
+                // Retype Password Field
+                TextFormField(
+                  controller: _retypePasswordController,
+                  decoration: const InputDecoration(
+                    labelText: 'Retype Password',
+                    border: OutlineInputBorder(),
+                  ),
+                  obscureText: true,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please retype your password';
+                    } else if (value != _passwordController.text) {
+                      return 'Passwords do not match';
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 16),
                 // Email Field
                 TextFormField(
                     controller: _emailController,
@@ -258,6 +296,16 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
                     }
                   },
                   child: Text('Register'),
+                ),
+                // Login text
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (context) => LoginScreen()),
+                    );
+                  },
+                  child: Text('Already have an account? Login here'),
                 ),
               ],
             ),

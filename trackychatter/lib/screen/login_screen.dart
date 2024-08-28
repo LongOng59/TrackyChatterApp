@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart'; // Import the Flutter Material package for UI components
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Authentication package
+import 'package:trackychatter/screen/main_screen.dart';
 import 'registration_screen.dart'; // Import the registration screen
 
 class LoginScreen extends StatefulWidget {
@@ -35,6 +36,11 @@ class _LoginScreenState extends State<LoginScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text('Login successful!')), // Show a success message
+          );
+          // Navigate to MainScreen
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(builder: (context) => MainScreen()),
           );
           // You can navigate to the main screen of the app here
           // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()));
