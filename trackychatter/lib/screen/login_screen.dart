@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart'; // Import the Flutter Material package for UI components
 import 'package:firebase_auth/firebase_auth.dart'; // Import Firebase Authentication package
 import 'package:trackychatter/screen/main_screen.dart';
+import 'package:trackychatter/screen/splash_screen.dart';
 import 'registration_screen.dart'; // Import the registration screen
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends StatefulWidget {
   // This class represents the login screen, which is stateful
@@ -33,6 +35,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // If login is successful
         if (userCredential.user != null) {
+          // Save login status in SharedPreferences
+          SharedPreferences prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('isLoggedIn', true);
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
                 content: Text('Login successful!')), // Show a success message
@@ -40,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
           // Navigate to MainScreen
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => MainScreen()),
+            MaterialPageRoute(builder: (context) => SplashScreen()),
           );
           // You can navigate to the main screen of the app here
           // Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => MainScreen()));
@@ -53,6 +59,18 @@ class _LoginScreenState extends State<LoginScreen> {
         );
       }
     }
+  }
+
+  Future<void> _logout() async {
+    await FirebaseAuth.instance.signOut();
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('isLoggedIn', false);
+
+    // Navigate back to the login screen
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => LoginScreen()),
+    );
   }
 
   @override

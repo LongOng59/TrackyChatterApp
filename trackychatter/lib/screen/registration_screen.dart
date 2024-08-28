@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:intl/intl.dart';
+import 'package:trackychatter/api/apis.dart';
 import 'package:trackychatter/screen/login_screen.dart';
 
 class RegistrationScreen extends StatefulWidget {
+  const RegistrationScreen({super.key});
+
   @override
   _RegistrationScreenState createState() => _RegistrationScreenState();
 }
@@ -16,7 +19,6 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
       TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _phoneController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   DateTime? _selectedDate;
   var isVerified = false;
@@ -117,6 +119,13 @@ class _RegistrationScreenState extends State<RegistrationScreen> {
         // Store additional user information if needed
         User? user = userCredential.user;
         if (user != null) {
+          DateTime parsedBirthday = DateTime.parse(_dateController.text);
+
+          await APIs.createUser(
+            _nameController.text,
+            _phoneController.text,
+            parsedBirthday, // Passing parsed DateTime object
+          );
           // User is successfully registered
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Registration successful!')),

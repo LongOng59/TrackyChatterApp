@@ -1,5 +1,6 @@
 import 'package:firebase_core/firebase_core.dart'; // Import Firebase Core for initialization
 import 'package:flutter/material.dart'; // Import Flutter Material package for UI components
+import 'package:trackychatter/screen/splash_screen.dart';
 import 'screen/login_screen.dart'; // Import the login screen
 
 void main() async {
@@ -20,7 +21,7 @@ class MyApp extends StatelessWidget {
       theme: ThemeData(
         primarySwatch: Colors.blue, // Set the primary theme color
       ),
-      home: LoginScreen(), // Set the home screen to the login screen
+      home: SplashScreen(), // Set the home screen to the login screen
     );
   }
 }
