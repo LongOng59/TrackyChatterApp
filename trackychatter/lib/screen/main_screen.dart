@@ -5,6 +5,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:trackychatter/app_constants.dart';
 import 'package:trackychatter/screen/login_screen.dart';
+import 'package:trackychatter/screen/logout_screen.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -159,7 +160,7 @@ class _MainScreenState extends State<MainScreen>
                   context,
                   MaterialPageRoute(
                       builder: (context) =>
-                          LoginScreen()), // Navigate to login screen after logout
+                          LogoutScreen()), // Navigate to logout screen after logout
                 );
               },
               backgroundColor: Colors.red,
