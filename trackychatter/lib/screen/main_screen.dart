@@ -1,11 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:trackychatter/app_constants.dart';
-import 'package:trackychatter/screen/login_screen.dart';
 import 'package:trackychatter/screen/logout_screen.dart';
+import 'package:geolocator/geolocator.dart';
 
 class MainScreen extends StatefulWidget {
   @override
@@ -15,13 +17,22 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen>
     with SingleTickerProviderStateMixin {
   // Animation controller for sliding the square
+  final User? user = FirebaseAuth.instance.currentUser;
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
   double _currentOffset = 1.0;
+  LatLng? _currentLocation;
+  MapController mapController = MapController();
+  StreamSubscription<Position>? positionStreamSubscription;
+  List<LatLng> _groupLocations = [];
+  List<Marker> _markers = [];
 
   @override
   void initState() {
     super.initState();
+    _getCurrentLocation();
+    _startLocationUpdates();
+    _listenToGroupLocations();
     _controller = AnimationController(
       duration: const Duration(milliseconds: 500),
       vsync: this,
@@ -38,6 +49,7 @@ class _MainScreenState extends State<MainScreen>
   @override
   void dispose() {
     _controller.dispose();
+    positionStreamSubscription?.cancel();
     super.dispose();
   }
 
@@ -55,6 +67,136 @@ class _MainScreenState extends State<MainScreen>
     }
   }
 
+  Future<void> _getCurrentLocation() async {
+    bool serviceEnable;
+    LocationPermission permission;
+
+    //Check if location service are enable
+    serviceEnable = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnable) {
+      // Location services are not enabled, don't continue
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content:
+                Text('Location service is disable')), // Show an error message
+      );
+      return;
+    }
+
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content:
+                  Text('GPS permission is dinied')), // Show an error message
+        );
+        return;
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+            content: Text(
+                'GPS permission is dinied forever')), // Show an error message
+      );
+      return;
+    }
+
+    // Get the current location of the device
+    Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.bestForNavigation);
+
+    setState(() {
+      _currentLocation = LatLng(position.latitude, position.longitude);
+    });
+  }
+
+  Future<void> _updateUserLocation(LatLng location) async {
+    String userId = user!.uid;
+    await FirebaseFirestore.instance.collection('locations').doc(userId).set({
+      'latitude': location.latitude,
+      'longitude': location.longitude,
+      'timestamp': FieldValue.serverTimestamp(),
+      'userId': userId, // Optional if not using as document ID
+      'heading': 90.0, // Optional
+      'speed': 5.5, // Optional
+    });
+  }
+
+  void _listenToGroupLocations() {
+    FirebaseFirestore.instance
+        .collection('locations')
+        .snapshots()
+        .listen((QuerySnapshot snapshot) {
+      setState(() {
+        _groupLocations = snapshot.docs.map((doc) {
+          return LatLng(
+            doc['latitude'],
+            doc['longitude'],
+          );
+        }).toList();
+      });
+
+      // Update the map markers for all group members
+      _updateGroupMarkers();
+    });
+  }
+
+  void _updateGroupMarkers() {
+    setState(() {
+      _markers.clear(); // Clear existing markers
+
+      for (LatLng location in _groupLocations) {
+        _markers.add(
+          Marker(
+            width: 80.0,
+            height: 80.0,
+            point: location,
+            child: Icon(
+              Icons.location_pin,
+              color: Colors.blue,
+              size: 40.0,
+            ),
+          ),
+        );
+      }
+    });
+  }
+
+  void _startLocationUpdates() {
+    // Request permission and start listening for location updates
+    positionStreamSubscription = Geolocator.getPositionStream(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.bestForNavigation,
+        distanceFilter: 1, // Update location if moved more than 10 meters
+      ),
+    ).listen((Position position) {
+      LatLng newLocation = LatLng(position.latitude, position.longitude);
+
+      _updateUserLocation(newLocation);
+      // Calculate the distance between the old and new location
+      double distance = Geolocator.distanceBetween(
+        _currentLocation!.latitude,
+        _currentLocation!.longitude,
+        newLocation.latitude,
+        newLocation.longitude,
+      );
+
+      // Only move the map if the user has moved more than 5 meters
+      if (_currentLocation == null || distance > 1) {
+        setState(() {
+          _currentLocation = newLocation;
+        });
+
+        // Move the map to the new location smoothly
+        mapController.move(_currentLocation!, 10.0);
+      }
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     final User? user = FirebaseAuth.instance.currentUser;
@@ -62,22 +204,30 @@ class _MainScreenState extends State<MainScreen>
     return Scaffold(
       body: Stack(
         children: [
-          // Map that takes up the whole screen
-          FlutterMap(
-            options: const MapOptions(
-              initialCenter: LatLng(51.5, -0.09),
-              initialZoom: 13.0,
-            ),
-            children: [
-              TileLayer(
-                urlTemplate: AppConstants.urlTemplate,
-                additionalOptions: const {
-                  'id': AppConstants.mapBoxStyleNightId,
-                },
-                fallbackUrl: AppConstants.urlTemplate,
+          if (_currentLocation != null)
+            // Map that takes up the whole screen
+            FlutterMap(
+              mapController: mapController,
+              options: MapOptions(
+                initialCenter: _currentLocation!,
+                initialZoom: 13.0,
               ),
-            ],
-          ),
+              children: [
+                TileLayer(
+                  urlTemplate: AppConstants.urlTemplate,
+                  additionalOptions: const {
+                    'id': AppConstants.mapBoxStyleNightId,
+                  },
+                  fallbackUrl: AppConstants.urlTemplate,
+                ),
+                //Display Current location
+                MarkerLayer(markers: _markers),
+              ],
+            )
+          else
+            Center(
+              child: CircularProgressIndicator(), // Show a loading indicator
+            ),
           // Overlay with rounded rectangle and avatar
           Positioned(
             top: 40,
@@ -150,6 +300,7 @@ class _MainScreenState extends State<MainScreen>
             ),
           ),
 
+          //Logout Button
           Positioned(
             left: 20,
             top: 120,
@@ -168,6 +319,22 @@ class _MainScreenState extends State<MainScreen>
               tooltip: 'Logout',
             ),
           ),
+
+          //Relocate Button
+          Positioned(
+            left: 20,
+            top: 320,
+            child: FloatingActionButton(
+              onPressed: () async {
+                await _getCurrentLocation();
+                mapController.move(_currentLocation!, 13.0);
+              },
+              backgroundColor: Colors.blue,
+              child: Icon(Icons.navigation),
+              tooltip: 'Logout',
+            ),
+          ),
+
           // Sliding square
           GestureDetector(
             onVerticalDragUpdate: (details) {
